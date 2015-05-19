@@ -37,17 +37,10 @@ function DynamicRowEditor(containerId, isSortable, allowLastRowDelete, optionalP
             this.addNewRow();
             e.preventDefault();
         }.bind(this)); //bind DynamicRowEditor as this
-
-    $container.parents('form').on('submit', null, this, function (e) {
-        // this is the form, e.data will be a DynamicRowEditor reference
-        if ($(this).valid()) {
-            e.data.rows().filter(':hidden').remove();
-        }
-    });
 }
 // end constructor
 
-DynamicRowEditor.prototype.rows = function () {
+DynamicRowEditor.prototype.getRows = function () {
     return $('#' + this.containerId + ' [data-row]');
 };
 
@@ -59,7 +52,7 @@ DynamicRowEditor.prototype.toggleSortable = function () {
     var containerId = _this.containerId;
     var $container = $('#' + containerId);
 
-    if (_this.rows().length === 1 && _this.isSortable) {
+    if (_this.getRows().length === 1 && _this.isSortable) {
 
         $container.find('[data-sortable]').sortable({ disabled: true });
         $container.find('[data-drag-icon]').hide();
@@ -86,29 +79,13 @@ DynamicRowEditor.prototype.addNewRow = function () {
 
     var $originalRow = $('#' + containerId + ' [data-row]:last');
 
-    // If the last row was hidden simply clean it of error messages and show the row
+    // If the last row was hidden simply show the row
     // ******************************************************************************
-    if (_this.hideLastRow && _this.rows().not(':hidden').length === 0) {
-        // remove error classes so that an invalid row does not get shown
-        $originalRow.find('.has-error').removeClass('has-error');
+    if (_this.hideLastRow && _this.getRows().not(':hidden').length === 0) {
 
         if (_this.onRowAdded) {
             _this.onRowAdded($originalRow);
         }
-
-        // array to hold ids
-        var originalIds = [];
-
-        $originalRow.find('[id]').each(function () {
-            originalIds.push(this.id);
-        });
-
-        $originalRow.find('span').each(function () {
-            var $this = $(this);
-            if ($.inArray($this.attr('for'), originalIds) > -1) {
-                $this.remove();
-            }
-        });
 
         $originalRow.show();
         return;
@@ -121,26 +98,6 @@ DynamicRowEditor.prototype.addNewRow = function () {
     // create a duplicate of the row
     var $newRow = $originalRow.clone();
 
-    // remove error classes so that an invalid row does not affect the one being copied
-    $newRow.find('.has-error').removeClass('has-error');
-
-    //remove any validation messages that may have been copied over
-    //*************************************************************
-
-    // array to hold ids
-    var ids = [];
-
-    $newRow.find('[id]').each(function () {
-        ids.push(this.id);
-    });
-
-    $newRow.find('span').each(function () {
-        var $this = $(this);
-        if ($.inArray($this.attr('for'), ids) > -1) {
-            $this.remove();
-        }
-    });
-    //*************************************************************
 
     // show removal button
     $newRow.find('a[data-remove-location]').show();
@@ -152,7 +109,7 @@ DynamicRowEditor.prototype.addNewRow = function () {
     var $allChildren = $newRow.find('* :not([type=hidden])');
 
     // increase the number in brackets in each found elements name property --> ObjectName[0].SomeProperty --> ObjectName[1].SomeProperty
-    $allChildren.each(_this.replaceIdsAndIndexes);
+    //$allChildren.each(_this.replaceIdsAndIndexes);
 
     //fire custom callback if neccessary
     if (_this.onRowAdded) {
@@ -194,7 +151,7 @@ DynamicRowEditor.prototype.removeRow = function (e) {
 
             var $row = $(this);
 
-            if (_this.rows().length > 1) {
+            if (_this.getRows().length > 1) {
                 // this is the element to remove
                 $row.remove();
             }
@@ -211,17 +168,8 @@ DynamicRowEditor.prototype.removeRow = function (e) {
     };
 
     // if the confirmDivId is supplied use the bootstrap modal in place of a confirm window
-    if (rowIsNonEmpty && this.confirmDivId) {
-        // setup the modal
-       ($('#' + this.confirmDivId).confirm(
-        {
-            callback: remove,
-            body: this.settings.rowDeleteConfirmMessage,
-            backdrop: 'static' // do not allow the user to click outside of the box to close it. they must make a choice
-        })) // immediatley show the modal
-           .data('confirm').show();
-    } else {
-        // not using a confirmation, immediatley remove the row
+    if (rowIsNonEmpty &&  confirm('Do you want to remove this row?')) {
+       //remove the row
         remove();
     }
 
@@ -233,14 +181,14 @@ DynamicRowEditor.prototype.showOrHideDeleteButton = function () {
     var _this = this;
     var containerId = _this.containerId;
 
-    if (_this.rows().length === 1 && !_this.hideLastRow) {
+    if (_this.getRows().length === 1 && !_this.hideLastRow) {
         $('#' + containerId + ' a[data-remove-location]').attr('style', 'visibility: hidden');
     } else {
         $('#' + containerId + ' a[data-remove-location]').attr('style', 'visibility: visible');
     }
 };
 
-DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
+/*DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
     // private variables
     var $element = $(this);
     var allBracketedNumbers, allUnderLinedNumbers, foundNumber, numberVal, newVal, newName;
@@ -289,4 +237,4 @@ DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
         }
     }
 
-};
+};*/
