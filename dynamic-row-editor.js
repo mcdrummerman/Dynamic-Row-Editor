@@ -162,7 +162,7 @@ DynamicRowEditor.prototype.addNewRow = function () {
         this.cleanNewRow($newRow);
     }
 
-    //fire custom callback if neccessary
+    //fire custom callback if necessary
     if (_this.onRowAdded) {
         _this.onRowAdded($newRow);
     }
