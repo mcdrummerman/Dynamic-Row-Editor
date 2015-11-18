@@ -185,7 +185,7 @@ DynamicRowEditor.prototype.addNewRow = function () {
 
 DynamicRowEditor.prototype.removeRow = function (e) {
 
-    // _this will be a referenc to the DynamicRowEditor instance
+    // _this will be a reference to the DynamicRowEditor instance
     var _this = this;
 
     e.preventDefault();
