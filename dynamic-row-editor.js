@@ -1,5 +1,5 @@
-﻿// Constructor
-function DynamicRowEditor(containerId, isSortable, allowLastRowDelete, optionalParameters) {
+// Constructor
+function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optionalParameters) {
     var defaults = {
         rowAdded: null,
         rowDeleted: null,
@@ -23,21 +23,21 @@ function DynamicRowEditor(containerId, isSortable, allowLastRowDelete, optionalP
     this.isSortable = isSortable;
     this.hideLastRow = allowLastRowDelete;
     this.showHideTimeout = this.settings.showHideTimeout;
-    this.containerId = containerId;
+    this.containerId = containerNode.id;
     this.confirmDivId = this.settings.confirmDivId;
     this.useConfirm = this.settings.useConfirm;
     this.shouldCleanNewRow = this.settings.shouldCleanNewRow;
     this.shouldCloneRow = this.settings.shouldCloneRow;
 
-    this.containerId = containerId;
+    this.containerNode = containerNode;
+
+    var $container = $(containerNode);
 
     // assign the row editor to the data property of the container so that it can be easily retrieved if needed later
-    $('#' + containerId).data('dynamic-row-editor', this);
+    $container.data('dynamic-row-editor', this);
 
     this.showOrHideDeleteButton.call(this, this.containerId);
     this.toggleSortable.call(this, this.containerId);
-
-    var $container = $('#' + this.containerId);
 
     $container.off('click', this.dataRemoveSelector).on('click', this.dataRemoveSelector, this.removeRow.bind(this)); //bind DynamicRowEditor as this
 
@@ -254,10 +254,14 @@ DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
     var digitRegEx = new RegExp('\\d+');
     var underLinedValRegEx = new RegExp('[_]*\\d[_]*');
 
+    var isLabel = $element.is('label');
 
     allBracketedNumbers = bracketedValRegEx.exec($element.attr('name'));
-    allUnderLinedNumbers = underLinedValRegEx.exec($element.attr('id'));
-
+    if (isLabel) {
+        allUnderLinedNumbers = underLinedValRegEx.exec($element.attr('for'));
+    } else {
+        allUnderLinedNumbers = underLinedValRegEx.exec($element.attr('id'));
+    }
     // increment the number used in the name
     // some elements may not have the name property, like the option element of a drop down
     if (allBracketedNumbers && allBracketedNumbers.length > 0) {
@@ -288,8 +292,14 @@ DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
 
         if (numberVal !== undefined && !isNaN(numberVal)) {
             newVal = ++numberVal;
-            newName = $element.attr('id').replace(underLinedValRegEx, '_' + newVal + '__');
-            $element.attr('id', newName);
+
+            if (isLabel) {
+                newName = $element.attr('for').replace(underLinedValRegEx, '_' + newVal + '__');
+                $element.attr('for', newName);
+            } else {
+                newName = $element.attr('id').replace(underLinedValRegEx, '_' + newVal + '__');
+                $element.attr('id', newName);
+            }
         }
     }
 
