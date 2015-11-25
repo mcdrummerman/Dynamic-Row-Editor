@@ -10,7 +10,8 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
         useConfirm: false,
         shouldCleanNewRow: true,
         shouldCloneRow: true,
-        ignoreDotNetIndexes: false
+        ignoreDotNetIndexes: false,
+        cleanRowExclusionSelector: null
     };
 
     this.dataRemoveSelector = '[data-remove-location]';
@@ -33,19 +34,18 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
     this.useConfirm = this.settings.useConfirm;
     this.shouldCleanNewRow = this.settings.shouldCleanNewRow;
     this.shouldCloneRow = this.settings.shouldCloneRow;
-    this.cleanRowExclusionSelector = null; 
+    this.cleanRowExclusionSelector = this.settings.cleanRowExclusionSelector;
     this.ignoreDotNetIndexes = this.settings.ignoreDotNetIndexes;
 
     this.containerNode = containerNode;
     this.$container = $(containerNode);
+    this.mvcHiddenIndexSelector = 'input[type=hidden][name$=".Index"]';
 
     // assign the row editor to the data property of the container so that it can be easily retrieved if needed later
     this.$container.data('dynamic-row-editor', this);
 
     this.showOrHideDeleteButton.call(this, this.containerId);
     this.toggleSortable.call(this, this.containerId);
-
-    this.$container.off('click', this.dataRemoveSelector).on('click', this.dataRemoveSelector, this.removeRow.bind(this)); //bind DynamicRowEditor as this
 
     this.$container.off('click', this.dataRemoveSelector).on('click', this.dataRemoveSelector, this.removeRowClick.bind(this)); //bind DynamicRowEditor as this
 
@@ -91,13 +91,17 @@ DynamicRowEditor.prototype.toggleSortable = function () {
 };
 
 DynamicRowEditor.prototype.cleanNewRow = function ($row) {
-
+    var notMvcHiddenSelector = 'input[type=hidden]:not([name$=".Index"])';
     // reset text boxes
     ///if there is somehting we wish to exclude then an exclusion selector should have a value, we use that here
     if (this.cleanRowExclusionSelector) {
         $row.find(':text:not(' + this.cleanRowExclusionSelector + ')').val('');
+        if (!this.ignoreDotNetIndexes) {
+            $row.find(notMvcHiddenSelector + ':text:not(' + this.cleanRowExclusionSelector + ')').val('');
+        }
     } else {
         $row.find(':text').val('');
+        $row.find(notMvcHiddenSelector).val('');
     }
 
     // reset check boxes
@@ -140,7 +144,7 @@ DynamicRowEditor.prototype.addNewRow = function () {
         }
 
         if (this.shouldCleanNewRow) {
-            this.cleanNewRow($originalRow);
+            _this.cleanNewRow($originalRow);
         }
 
         $originalRow.show();
@@ -156,14 +160,15 @@ DynamicRowEditor.prototype.addNewRow = function () {
 
     // if we are using this with .Net MVC binding to a list we have to alter the names of the inputs 
     if (!this.ignoreDotNetIndexes) {
-        var $hidden = $originalRow.find('input[type=hidden]');
+
+        var $hidden = $originalRow.find(_this.mvcHiddenIndexSelector); // type hidden and "Name" ends with .Index
         var previousVal = parseInt($hidden.val(), 10);
 
         // increase the value of the hidden input by one. This is the index used by MVC model binding
-        $newRow.find('input[type=hidden]').val(previousVal + 1);
+        $newRow.find(_this.mvcHiddenIndexSelector).val(previousVal + 1);
 
         // get all elements that are not of type hidden
-        var $allChildren = $newRow.find('* :not([type=hidden])');
+        var $allChildren = $newRow.find('*:not([name$=".Index"])');
 
         // increase the number in brackets in each found elements name property --> ObjectName[0].SomeProperty --> ObjectName[1].SomeProperty
         $allChildren.each(_this.replaceIdsAndIndexes);
