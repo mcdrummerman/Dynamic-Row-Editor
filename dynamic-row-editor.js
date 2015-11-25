@@ -94,13 +94,17 @@ DynamicRowEditor.prototype.cleanNewRow = function ($row) {
     var notMvcHiddenSelector = 'input[type=hidden]:not([name$=".Index"])';
     // reset text boxes
     ///if there is somehting we wish to exclude then an exclusion selector should have a value, we use that here
+    var $textBoxes;
     if (this.cleanRowExclusionSelector) {
-        $row.find(':text:not(' + this.cleanRowExclusionSelector + ')').val('');
         if (!this.ignoreDotNetIndexes) {
-            $row.find(notMvcHiddenSelector + ':text:not(' + this.cleanRowExclusionSelector + ')').val('');
+            $textBoxes = $row.find(notMvcHiddenSelector + ':text:not(' + this.cleanRowExclusionSelector + ')')
+        } else {
+            $textBoxes = $row.find(':text:not(' + this.cleanRowExclusionSelector + ')');
         }
+
+        $textBoxes.val('').attr('value', '');
     } else {
-        $row.find(':text').val('');
+        $row.find(':text').val('').attr('value', '');
         $row.find(notMvcHiddenSelector).val('');
     }
 
@@ -334,5 +338,4 @@ DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
             }
         }
     }
-
 };
