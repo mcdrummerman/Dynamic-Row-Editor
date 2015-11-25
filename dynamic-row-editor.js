@@ -179,7 +179,9 @@ DynamicRowEditor.prototype.addNewRow = function () {
     }
 
     // hide so that the row can be faded in 
-    $newRow.hide();
+    if (_this.showHideTimeout > 0) {
+        $newRow.hide();
+    }
 
     // add new row
     $originalRow.after($newRow);
