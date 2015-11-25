@@ -4,6 +4,8 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
         rowAdded: null,
         rowDeleted: null,
         showHideTimeout: 0, // timeout for show and hide effects
+        beforeRowDeleted: function () { return true; },
+        beforeRowAdded: function () { return true; },
         rowDeleteConfirmMessage: 'Do you want to remove this row?',
         useConfirm: false,
         shouldCleanNewRow: true,
@@ -15,9 +17,12 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
     this.dataAddSelector = '[data-add-location]';
     this.sortableSelctor = '[data-sortable]';
     this.dragIconSelector = '[data-drag-icon]';
+    this.dataRowSelector = '[data-row]';
 
     this.settings = $.extend({}, defaults, optionalParameters);
 
+    this.onBeforeRowAdded = this.settings.beforeRowAdded;
+    this.onBeforeRowDeleted = this.settings.beforeRowDeleted;
     this.onRowAdded = this.settings.rowAdded;
     this.onRowDeleted = this.settings.rowDeleted;
     this.isSortable = isSortable;
@@ -28,21 +33,23 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
     this.useConfirm = this.settings.useConfirm;
     this.shouldCleanNewRow = this.settings.shouldCleanNewRow;
     this.shouldCloneRow = this.settings.shouldCloneRow;
+    this.cleanRowExclusionSelector = null; 
     this.ignoreDotNetIndexes = this.settings.ignoreDotNetIndexes;
 
     this.containerNode = containerNode;
-
-    var $container = $(containerNode);
+    this.$container = $(containerNode);
 
     // assign the row editor to the data property of the container so that it can be easily retrieved if needed later
-    $container.data('dynamic-row-editor', this);
+    this.$container.data('dynamic-row-editor', this);
 
     this.showOrHideDeleteButton.call(this, this.containerId);
     this.toggleSortable.call(this, this.containerId);
 
-    $container.off('click', this.dataRemoveSelector).on('click', this.dataRemoveSelector, this.removeRow.bind(this)); //bind DynamicRowEditor as this
+    this.$container.off('click', this.dataRemoveSelector).on('click', this.dataRemoveSelector, this.removeRow.bind(this)); //bind DynamicRowEditor as this
 
-    $container.off('click', this.dataAddSelector).on('click', this.dataAddSelector,
+    this.$container.off('click', this.dataRemoveSelector).on('click', this.dataRemoveSelector, this.removeRowClick.bind(this)); //bind DynamicRowEditor as this
+
+    this.$container.off('click', this.dataAddSelector).on('click', this.dataAddSelector,
         function (e) {
             this.addNewRow();
             e.preventDefault();
@@ -51,7 +58,8 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
 // end constructor
 
 DynamicRowEditor.prototype.getRows = function () {
-    return $('#' + this.containerId + ' [data-row]');
+    var _this = this;
+    return _this.$container.find(_this.dataRowSelector);
 };
 
 DynamicRowEditor.prototype.toggleSortable = function () {
@@ -59,8 +67,7 @@ DynamicRowEditor.prototype.toggleSortable = function () {
     // _this will be a reference to the DynamicRowEditor instance
     var _this = this;
 
-    var containerId = _this.containerId;
-    var $container = $('#' + containerId);
+    var $container = _this.$container;
 
     // only one row, hide sorintg and dragging options
     if (_this.getRows().length === 1 && _this.isSortable) {
@@ -75,18 +82,18 @@ DynamicRowEditor.prototype.toggleSortable = function () {
             throw 'No data-sortable attribute found. Making the rows sortable requires you to apply a data-sortable attribute to the root element for the sortable elements. If this is a table add it to the tbody element.';
         }
 
-        $sortable.sortable({ containment: '#' + containerId, disabled: false });
+        $sortable.sortable({ containment: '#' + _this.containerId, disabled: false });
         $container.find(this.dragIconSelector).show();
 
     } else {
-        $('#' + containerId).find(this.dragIconSelector).hide();
+        $container.find(this.dragIconSelector).hide();
     }
 };
 
 DynamicRowEditor.prototype.cleanNewRow = function ($row) {
 
     // reset text boxes
-    // if there is somehting we wish to exclude then an exclusion selector should have a value, we use that here
+    ///if there is somehting we wish to exclude then an exclusion selector should have a value, we use that here
     if (this.cleanRowExclusionSelector) {
         $row.find(':text:not(' + this.cleanRowExclusionSelector + ')').val('');
     } else {
@@ -123,7 +130,6 @@ DynamicRowEditor.prototype.addNewRow = function () {
         return;
 
     }
-
 
     // If the last row was hidden simply show the row
     // ******************************************************************************
@@ -188,50 +194,57 @@ DynamicRowEditor.prototype.addNewRow = function () {
     $newRow.show(_this.showHideTimeout);
 };
 
-DynamicRowEditor.prototype.removeRow = function (e) {
+DynamicRowEditor.prototype.removeRow = function ($rowToRemove) {
+    // _this will be a reference to the DynamicRowEditor instance
+    var _this = this;
+
+    //fade then remove the row
+    $rowToRemove.hide(_this.showHideTimeout, function () {
+
+        var $row = $(this);
+
+        // remove the row if there are more than one rows or if the user has decided not to clone the rows
+        // if they decide not to clone the row the intention is that they are using the onRowAdded parameter to pass in 
+        // a custom function that makes their desired row
+        if ((_this.getRows().length > 1) || !_this.shouldCloneRow) {
+
+            $row.remove();
+        }
+
+        _this.showOrHideDeleteButton(_this.containerId);
+
+        // make sortable if applicable
+        _this.toggleSortable(_this.containerId);
+
+        if (_this.onRowDeleted) {
+            _this.onRowDeleted($row);
+        }
+
+    });
+};
+
+DynamicRowEditor.prototype.removeRowClick = function (e) {
 
     // _this will be a reference to the DynamicRowEditor instance
     var _this = this;
 
     e.preventDefault();
 
-    var $rowToRemove = $(e.currentTarget).closest('[data-row]');
+    var $rowToRemove = $(e.currentTarget).closest(this.dataRowSelector);
 
     var rowIsNonEmpty = $rowToRemove.find('input[type=text]').is(function (index, obj) {
         return $(obj).val() !== '';
     });
 
-    var remove = function () {
-        //fade then remove the row
-        $rowToRemove.closest('[data-row]').hide(_this.showHideTimeout, function () {
-
-            var $row = $(this);
-
-            if (_this.getRows().length > 1) {
-                // this is the element to remove
-                $row.remove();
-            }
-
-            _this.showOrHideDeleteButton(_this.containerId);
-
-            // make sortable if applicable
-            _this.toggleSortable(_this.containerId);
-
-            if (_this.onRowDeleted) {
-                _this.onRowDeleted($row);
-            }
-        });
-    };
-
     // verify with user that they want to delete the row
     if (rowIsNonEmpty && this.useConfirm && confirm('Do you want to remove this row?')) {
 
         //remove the row after a confirmation is displayed
-        remove();
+        _this.removeRow($rowToRemove);
     } else {
 
         // just remove the row
-        remove();
+        _this.removeRow($rowToRemove);
     }
 
 };
@@ -243,10 +256,17 @@ DynamicRowEditor.prototype.showOrHideDeleteButton = function () {
     var containerId = _this.containerId;
 
     if (_this.getRows().length === 1 && !_this.hideLastRow) {
-        $('#' + containerId + ' ' + _this.dataRemoveSelector).attr('style', 'visibility: hidden');
+        _this.$container.find(_this.dataRemoveSelector).attr('style', 'visibility: hidden');
     } else {
-        $('#' + containerId + ' ' + _this.dataRemoveSelector).attr('style', 'visibility: visible');
+        _this.$container.find(_this.dataRemoveSelector).attr('style', 'visibility: visible');
     }
+};
+
+DynamicRowEditor.prototype.removeAllRows = function () {
+    var _this = this;
+    $.each(this.getRows(), function (i, o) {
+        _this.removeRow($(o));
+    });
 };
 
 DynamicRowEditor.prototype.replaceIdsAndIndexes = function () {
