@@ -3,12 +3,12 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
     var defaults = {
         rowAdded: null,
         rowDeleted: null,
-        beforeRowDeleted: null,
-        showHideTimeout: 250,
+        showHideTimeout: 0, // timeout for show and hide effects
         rowDeleteConfirmMessage: 'Do you want to remove this row?',
         useConfirm: false,
         shouldCleanNewRow: true,
-        shouldCloneRow: true
+        shouldCloneRow: true,
+        ignoreDotNetIndexes: false
     };
 
     this.dataRemoveSelector = '[data-remove-location]';
@@ -28,6 +28,7 @@ function DynamicRowEditor(containerNode, isSortable, allowLastRowDelete, optiona
     this.useConfirm = this.settings.useConfirm;
     this.shouldCleanNewRow = this.settings.shouldCleanNewRow;
     this.shouldCloneRow = this.settings.shouldCloneRow;
+    this.ignoreDotNetIndexes = this.settings.ignoreDotNetIndexes;
 
     this.containerNode = containerNode;
 
@@ -113,6 +114,7 @@ DynamicRowEditor.prototype.addNewRow = function () {
 
     var $originalRow = $('#' + containerId + ' [data-row]:last');
 
+    // if we decide not to clone the row just run the onRowDded method and leave
     if (!this.shouldCloneRow) {
 
         if (_this.onRowAdded) {
@@ -140,23 +142,26 @@ DynamicRowEditor.prototype.addNewRow = function () {
     }
     // ******************************************************************************
 
-    var $hidden = $originalRow.find('input[type=hidden]');
-    var previousVal = parseInt($hidden.val(), 10);
-
     // create a duplicate of the row
     var $newRow = $originalRow.clone();
 
     // show removal button
     $newRow.find(this.dataRemoveSelector).show();
 
-    // increase the value of the hidden input by one. This is the index used by MVC model binding
-    $newRow.find('input[type=hidden]').val(previousVal + 1);
+    // if we are using this with .Net MVC binding to a list we have to alter the names of the inputs 
+    if (!this.ignoreDotNetIndexes) {
+        var $hidden = $originalRow.find('input[type=hidden]');
+        var previousVal = parseInt($hidden.val(), 10);
 
-    // get all elements that are not of type hidden
-    var $allChildren = $newRow.find('* :not([type=hidden])');
+        // increase the value of the hidden input by one. This is the index used by MVC model binding
+        $newRow.find('input[type=hidden]').val(previousVal + 1);
 
-    // increase the number in brackets in each found elements name property --> ObjectName[0].SomeProperty --> ObjectName[1].SomeProperty
-    $allChildren.each(_this.replaceIdsAndIndexes);
+        // get all elements that are not of type hidden
+        var $allChildren = $newRow.find('* :not([type=hidden])');
+
+        // increase the number in brackets in each found elements name property --> ObjectName[0].SomeProperty --> ObjectName[1].SomeProperty
+        $allChildren.each(_this.replaceIdsAndIndexes);
+    }
 
     if (this.shouldCleanNewRow) {
         this.cleanNewRow($newRow);
